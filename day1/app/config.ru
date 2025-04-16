@@ -23,7 +23,7 @@ $logger = ActiveSupport::TaggedLogging.new(LogHelper.new($stdout)).tagged("PID:#
 
 SUCCESS_RESPONSE = [
   'HTTP/1.1 200 OK',
-  'Connection: Keep-Alive',   
+  'Connection: Keep-Alive',
   'Content-Type: application/json',
   '',
   ''
@@ -117,7 +117,92 @@ class Application
     end
   end
 
+  def cpu_bound(_request, fib_number, *_args)
+    [200, {}, [render_string(calc_fibonacci(fib_number))]]
+  end
+
+  def cpu_bound_async(request, fib_number, *_args)
+    case server(request)
+    when :thin
+      Thread.new(request.env['async.callback']) do |cb|
+        cb.call([200, {}, [render_string(calc_fibonacci(fib_number))]])
+      end
+      # в Thin так вебсервер информируется об асинхронной обработке
+      throw :async
+    when :puma
+      Thread.new(request.env['puma.socket']) do |socket|
+        socket.write(SUCCESS_RESPONSE)
+        socket.write(render_string(calc_fibonacci(fib_number)))
+        socket.write("\n\n")
+        socket.close
+      end
+      # в Puma вебсервер "забывает" про сокет когда получает такой ответ от вашего приложения
+      [-1, {}, []]
+    when :passenger
+      Thread.new(request.env['rack.hijack'].call) do |socket|
+        socket.write(SUCCESS_RESPONSE)
+        socket.write(render_string(calc_fibonacci(fib_number)))
+        socket.write("\n\n")
+        socket.close
+      end
+      # в Passenger вебсервер "забывает" про сокет когда получает такой ответ от вашего приложения
+      [-1, {}, []]
+    else
+      [200, {}, [render_string(calc_fibonacci(fib_number))]]
+    end
+  end
+
+  def io_bound(_request, *_args)
+    File.read('test.png')
+
+    [200, {}, [render_string('done')]]
+  end
+
+  def io_bound_async(request, *_args)
+    case server(request)
+    when :thin
+      Thread.new(request.env['async.callback']) do |cb|
+        File.read('test.png')
+
+        cb.call([200, {}, [render_string('done')]])
+      end
+      # в Thin так вебсервер информируется об асинхронной обработке
+      throw :async
+    when :puma
+      Thread.new(request.env['puma.socket']) do |socket|
+        File.read('test.png')
+
+        socket.write(SUCCESS_RESPONSE)
+        socket.write(render_string('done'))
+        socket.write("\n\n")
+        socket.close
+      end
+      # в Puma вебсервер "забывает" про сокет когда получает такой ответ от вашего приложения
+      [-1, {}, []]
+    when :passenger
+      Thread.new(request.env['rack.hijack'].call) do |socket|
+        File.read('test.png')
+
+        socket.write(SUCCESS_RESPONSE)
+        socket.write(render_string('done'))
+        socket.write("\n\n")
+        socket.close
+      end
+      # в Passenger вебсервер "забывает" про сокет когда получает такой ответ от вашего приложения
+      [-1, {}, []]
+    else
+      [200, {}, [render_string('done')]]
+    end
+  end
+
   private
+
+  def calc_fibonacci(int = 0)
+    int = int.to_i
+    return int if int <= 1
+
+    calc_fibonacci(int - 1) + calc_fibonacci(int - 2)
+  end
 
   def render_string(msg)
     "#{ENV['HOSTNAME']}[#{Process.pid}] #{Time.now}:#{msg}"
