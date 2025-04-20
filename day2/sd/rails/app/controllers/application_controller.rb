@@ -5,8 +5,27 @@ class ApplicationController < ActionController::Base
 
   def info; end
 
+  # 561.176 seconds seconds without cache
+  # 52.553 seconds with cache
+  def cpu_bound
+    @number = params[:number]
+    @fib = cache.fetch("think:rails:cpu_bound_#{@number}", expires_in: 60.seconds) do
+      @fib = calc_fibonacci(@number)
+    end
+  end
+
+  # 76.831 seconds without cache
+  # 51.704 seconds with cache
+  def io_bound
+    size = cache.fetch('think:rails:io_bound', expires_in: 60.seconds) do
+      file = File.open('test.png', 'rb')
+      file.read
+      size = file.size
+    end
+    render(json: { size: })
+  end
+
   def cluster *_args
-  
     all = Diplomat::Health.service('think/rails-web', passing: true).map do |meta|
       id = meta.dig(:Service, 'ID')
       ip = meta.dig(:Service, 'Address')
@@ -16,11 +35,18 @@ class ApplicationController < ActionController::Base
 
     @infos = all.shuffle.map do |(id, ip, port)|
       info = Net::HTTP.get(URI("http://#{ip}:#{port}/info"))
-      [id, ip, port, info]              
+      [id, ip, port, info]
     end.sort
   end
 
   private
+
+  def calc_fibonacci(int)
+    int = int.to_i
+    return int if int <= 1
+
+    calc_fibonacci(int - 1) + calc_fibonacci(int - 2)
+  end
 
   helper_method :identifier
   def identifier

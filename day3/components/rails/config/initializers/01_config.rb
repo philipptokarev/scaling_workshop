@@ -29,7 +29,7 @@ class LeaderElector
   def redis
     @redis = Redis.new(host: $current_ip)
   end
-  
+
   def cache
     $cache ||= ActiveSupport::Cache::RedisCacheStore.new(redis: redis)
   end
