@@ -31,9 +31,9 @@ class Scheduler
     @shutdown = true
     return unless @scheduler
 
-    @scheduler&.stop rescue nil 
+    @scheduler&.stop rescue nil
     sleep 2
-    @scheduler&.kill rescue nil 
+    @scheduler&.kill rescue nil
     @scheduler = nil
   end
 end
@@ -49,23 +49,25 @@ Signal.trap('TERM') do
 end
 
 scheduler.start do |s|
-  s.cron '0 * * * *' do
-    TestJob.perform_later('Regular minute')
-  end
+  # s.cron '0 * * * *' do
+  #   TestJob.perform_later('Regular minute')
+  # end
 
-  s.every '10s' do
-    TestJob.perform_later('Regular 10s')
+  # s.every '10s' do
+  #   TestJob.perform_later('Regular 10s')
+  # end
+
+  s.every '15s' do
+    ObjectDeleteJob.perform_later
   end
 
   # s.every '10s' do
   #   TestSidekiqJob.perform_later('Regular 10s')
   # end
 
-  s.every '10s' do
-    TestSchedulerJob.perform_later(Time.now, 1.week.since)
-  end
-
-  
+  # s.every '10s' do
+  #   TestSchedulerJob.perform_later(Time.now, 1.week.since)
+  # end
 end
 
 scheduler.shutdown
