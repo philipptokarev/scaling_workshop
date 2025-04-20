@@ -2,7 +2,7 @@ version: "3.7"
 
 x-base: &base
   restart: unless-stopped
-  logging: 
+  logging:
     options:
       max-size: '50m'
       max-file: '3'
@@ -27,7 +27,7 @@ services:
       - 3000
     environment:
       CURRENT_IP: "${CURRENT_IP}"
-    labels:         
+    labels:
       # если использовать Docker Provider для Traefik
       # - "traefik.enable=true"
       # - "traefik.http.routers.rails_web.rule=Host(`rails.think`)"
@@ -38,13 +38,13 @@ services:
         traefik.http.routers.rails-web.rule=Host(`rails.think`),\
         traefik.http.routers.rails-web.entrypoints=web,\
         monitoring,monitoring_hostname=local"
-      
+
 
   traefik:
     <<: *base
     image: traefik:latest
     container_name: traefik
-    network_mode: host
+    # network_mode: host
     environment:
       CURRENT_IP: "${CURRENT_IP}"
     command:
@@ -54,12 +54,13 @@ services:
       - "--providers.consulcatalog.endpoint.address=${CURRENT_IP}:8500"
       - "--providers.consulcatalog.exposedbydefault=false"
       - "--entryPoints.web.address=:80"
-      - "--metrics.prometheus.addEntryPointsLabels=true"  
+      - "--metrics.prometheus.addEntryPointsLabels=true"
       - "--log.level=warn"
     # volumes:
     #   - "/var/run/docker.sock:/var/run/docker.sock:ro"
     ports:
-      - 8080
+      - 8080:8080
+      - 80:80
     labels:
       - "SERVICE_8080_NAME=think/traefik"
       - "SERVICE_8080_TAGS=traefik.enable=true,\
@@ -71,35 +72,40 @@ services:
     <<: *base
     image: consul:1.15
     container_name: consul
-    network_mode: host
+    # network_mode: host
     environment:
       CURRENT_IP: "${CURRENT_IP}"
     command: ["consul", "agent",
       "-dev",
       "-node", "${HOSTNAME}",
-      "-datacenter", "think", 
-      "-bootstrap-expect", "0",   
+      "-datacenter", "think",
+      "-bootstrap-expect", "0",
       "-ui=true",
       "-bind=0.0.0.0", "-client=0.0.0.0", "-advertise=${CURRENT_IP}",
       "-log-level", "info"
     ]
+    ports:
+      - 8500:8500
+      - 8300:8300
     labels:
       - "SERVICE_8500_NAME=think/consul"
       - "SERVICE_8500_TAGS=traefik.enable=true,\
         traefik.http.routers.consul.rule=Host(`consul.think`),\
         traefik.http.routers.consul.entrypoints=web"
       - "SERVICE_8300_IGNORE=1"
-      - "SERVICE_8301_IGNORE=1" 
+      - "SERVICE_8301_IGNORE=1"
       - "SERVICE_8302_IGNORE=1"
       - "SERVICE_8600_IGNORE=1"
 
-  
+
   registrator:
     <<: *base
     image: gliderlabs/registrator:master
-    network_mode: host
+    # network_mode: host
     environment:
       CURRENT_IP: "${CURRENT_IP}"
+    # extra_hosts:
+    #   - "host.docker.internal:host-gateway"
     command: ["-ip", "${CURRENT_IP}", "-cleanup", "-ttl", "40", "-ttl-refresh", "30", "-resync", "30", "consul://${CURRENT_IP}:8500"]
     volumes:
       - /var/run/docker.sock:/tmp/docker.sock:ro
@@ -107,7 +113,9 @@ services:
   redis:
     <<: *base
     image: redis
-    network_mode: host  
+    # network_mode: host
+    ports:
+      - 6379:6379
     depends_on:
       - registrator
 
@@ -143,7 +151,7 @@ services:
     command:
       - --storageDataPath=/vlogs
       - --loggerFormat=json
-      - --envflag.enable=true        
+      - --envflag.enable=true
     ports:
       - 9428:9428
     labels:
@@ -152,7 +160,6 @@ services:
         traefik.http.routers.vmlogs.rule=Host(`vmlogs.think`),\
         traefik.http.routers.vmlogs.entrypoints=web"
 
-  
   filebeat:
     <<: *base
     container_name: filebeat

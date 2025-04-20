@@ -1,6 +1,7 @@
 #!/bin/bash
 
-exec ab -n 50000 -c 100 "http://localhost:3000/sync_sleep/0?a=1111111111111111111111111111111111111111111111111111111"
+exec ab -n 25000 -c 10 "http://rails.think/cpu_bound?number=28"
+# exec ab -n 25000 -c 10 "http://rails.think/io_bound"
 
 
 
