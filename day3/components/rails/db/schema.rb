@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2025_03_31_130539) do
+ActiveRecord::Schema[7.2].define(version: 2025_04_20_211547) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -27,5 +27,12 @@ ActiveRecord::Schema[7.2].define(version: 2025_03_31_130539) do
     t.datetime "created_at"
     t.datetime "updated_at"
     t.index ["priority", "run_at"], name: "delayed_jobs_priority"
+  end
+
+  create_table "heavy_file_objects", force: :cascade do |t|
+    t.string "uuid"
+    t.integer "state", default: 0
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
   end
 end

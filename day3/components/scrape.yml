@@ -6,8 +6,8 @@ scrape_configs:
 - job_name: think
   scrape_interval: 30s
   consul_sd_configs:
-    - server: '172.22.1.11:8500' # Адрес consul
-      datacenter: 'think' 
+    - server: '192.168.0.111:8500' # Адрес consul
+      datacenter: 'think'
       allow_stale: true
   relabel_configs: &relabel_configs
     - source_labels: [__meta_consul_tags]
@@ -19,9 +19,9 @@ scrape_configs:
       regex: '.*,([^=]+)=([^,]+),.*'
       replacement: '${2}'
       target_label: '${1}'
-    - source_labels: [__meta_consul_tags]            
+    - source_labels: [__meta_consul_tags]
       regex: '.*,(?:monitoring_([^=,]+))=([^,]+),.*'
-      replacement: '${2}'                                      
+      replacement: '${2}'
       target_label: '${1}'
     - source_labels: [__meta_consul_tags]
       action: replace

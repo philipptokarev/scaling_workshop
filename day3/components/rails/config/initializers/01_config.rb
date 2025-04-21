@@ -1,6 +1,6 @@
 require 'prometheus/client/data_stores/direct_file_store'
 
-$current_ip = ENV.fetch('CURRENT_IP', '172.22.1.11')
+$current_ip = ENV.fetch('CURRENT_IP', '192.168.0.111')
 
 Diplomat.configure do |config|
   config.url = "http://#{$current_ip}:8500"
@@ -29,7 +29,7 @@ class LeaderElector
   def redis
     @redis = Redis.new(host: $current_ip)
   end
-  
+
   def cache
     $cache ||= ActiveSupport::Cache::RedisCacheStore.new(redis: redis)
   end
@@ -42,6 +42,9 @@ Rails.application.config.after_initialize do
   memory_gauge_mb = registry.gauge(:rss_memory_mb, docstring: 'RSS memory in MB')
 
   total_database_count = registry.gauge(:total_records, docstring: 'total records in DB')
+  file_processing_count = registry.gauge(:file_processing_count, docstring: 'file processing count')
+  file_processed_count = registry.gauge(:file_processed_count, docstring: 'file processed count')
+  file_deleted_count = registry.gauge(:file_deleted_count, docstring: 'file deleted count')
 
   elector = LeaderElector.new
 
@@ -53,6 +56,15 @@ Rails.application.config.after_initialize do
 
     if elector.leader?
       total_database_count.set(100)
+      file_processing_count.set(
+        HeavyFileObject.where(state: :processing, created_at: 1.day.ago..Time.now
+      ).count)
+      file_processed_count.set(
+        HeavyFileObject.where(state: :processed, created_at: 1.day.ago..Time.now
+      ).count)
+      file_deleted_count.set(
+        HeavyFileObject.where(state: :deleted, created_at: 1.day.ago..Time.now
+      ).count)
     end
   end
 end
